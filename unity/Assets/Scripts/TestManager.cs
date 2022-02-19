@@ -3,31 +3,145 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using System;
+using System.Linq;
 
 public class TestManager : MonoBehaviour
 {
+    private enum SortingCategory
+    {
+        DurationAscending,
+        DurationDescending,
+        TimeEndingSoonest,
+        TimeEndingFarthest,
+        Name
+    }
+
+    public InputField newObservationName;
     public Text label;
-    private Observation observation = new Observation("Test");
+    public GameObject newObservationPrefab;
+    public GameObject listContainer;
+    private string defaultNewObservationText = "Name";
+    public List<Observation> observations { get; private set; } = new List<Observation>();
+    private List<ObservationView> currentCardPool = new List<ObservationView>();
+    private SortingCategory currentSortingMethod = SortingCategory.Name;
+
+    private static TestManager _instance;
+    public static TestManager instance
+    {
+        get
+        {
+            return _instance;
+        }
+    }
+
+    public long nowTimestamp
+    {
+        get
+        {
+            return new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
+        }
+    }
+
+    private void Awake()
+    {
+        if (_instance != null && _instance != this)
+        {
+            Destroy(this.gameObject);
+        }
+        else
+        {
+            _instance = this;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (this == _instance)
+        {
+            _instance = null;
+        }
+    }
 
     void Start()
     {
-        UpdateLabel();
+        newObservationName.text = defaultNewObservationText;
+    }
+    
+    public void OnTapNewObservation()
+    {
+        string newName = newObservationName.text;
+        if (newName == defaultNewObservationText)
+        {
+            return;
+        }
+
+        if (observations.FirstOrDefault(x => x.name == newName) != null)
+        {
+            return;
+        }
+
+        observations.Add(new Observation(newName));
+        newObservationName.text = defaultNewObservationText;
+
+        UpdateView();
     }
 
-    public void OnObserveTapped()
+    private void SortObservations(SortingCategory category)
     {
-        observation.AddPerception(new Perception(PerceptionEvent.Observation, new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()));
-        UpdateLabel();
+        switch (category)
+        {
+            case SortingCategory.DurationAscending:
+                {
+                    observations = observations.OrderBy(x => x.averageDuration).ToList();
+                    break;
+                }
+            case SortingCategory.DurationDescending:
+                {
+                    observations = observations.OrderByDescending(x => x.averageDuration).ToList();
+                    break;
+                }
+            case SortingCategory.TimeEndingSoonest:
+                {
+                    observations = observations.OrderBy(x => x.nextDueDate).ToList();
+                    break;
+                }
+            case SortingCategory.TimeEndingFarthest:
+                {
+                    observations = observations.OrderByDescending(x => x.nextDueDate).ToList();
+                    break;
+                }
+            case SortingCategory.Name:
+            default:
+                {
+                    observations = observations.OrderBy(x => x.name).ToList();
+                    break;
+                }
+        }
     }
 
-    public void OnDoTapped()
+    private void UpdateView()
     {
-        observation.AddPerception(new Perception(PerceptionEvent.Execution, new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()));
-        UpdateLabel();
-    }
+        SortObservations(currentSortingMethod);
 
-    public void UpdateLabel()
-    {
-        label.text = $"{observation.name} - Average time: {observation.averageDuration}, Next due date: {observation.nextDueDate}\n Num perceptions: {observation.numPerceptions}, num intervals: {observation.numIntervals}";
+        for (int i = 0; i < observations.Count; i++)
+        {
+            if (currentCardPool.Count > i && currentCardPool[i] != null)
+            {
+                currentCardPool[i].UpdateView();
+            }
+            else
+            {
+                var newCard = Instantiate(newObservationPrefab, listContainer.transform)?.GetComponent<ObservationView>();
+                if (newCard != null)
+                {
+                    newCard.SetIndex(i);
+                    currentCardPool.Add(newCard);
+                }
+                else
+                {
+                    Debug.LogError($"Unable to Instantiate prefab for index: {i}");
+                }
+            }
+        }
     }
 }
