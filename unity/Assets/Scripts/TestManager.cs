@@ -7,13 +7,14 @@ using System.Linq;
 
 public class TestManager : MonoBehaviour
 {
-    private enum SortingCategory
+    public enum SortingCategory
     {
         DurationAscending,
         DurationDescending,
         TimeEndingSoonest,
         TimeEndingFarthest,
-        Name
+        NameAscending,
+        NameDescending
     }
 
     public InputField newObservationName;
@@ -23,7 +24,7 @@ public class TestManager : MonoBehaviour
     private string defaultNewObservationText = "Name";
     public List<Observation> observations { get; private set; } = new List<Observation>();
     private List<ObservationView> currentCardPool = new List<ObservationView>();
-    private SortingCategory currentSortingMethod = SortingCategory.Name;
+    private SortingCategory currentSortingMethod = SortingCategory.NameAscending;
 
     private static TestManager _instance;
     public static TestManager instance
@@ -110,7 +111,12 @@ public class TestManager : MonoBehaviour
                     observations = observations.OrderByDescending(x => x.nextDueDate).ToList();
                     break;
                 }
-            case SortingCategory.Name:
+            case SortingCategory.NameDescending:
+                {
+                    observations = observations.OrderByDescending(x => x.name).ToList();
+                    break;
+                }
+            case SortingCategory.NameAscending:
             default:
                 {
                     observations = observations.OrderBy(x => x.name).ToList();
@@ -143,5 +149,40 @@ public class TestManager : MonoBehaviour
                 }
             }
         }
+    }
+
+    public void SetSortingTypeDurationAscending()
+    {
+        SetSortingType(SortingCategory.DurationAscending);
+    }
+    public void SetSortingTypeDurationDescending()
+    {
+        SetSortingType(SortingCategory.DurationDescending);
+    }
+
+    public void SetSortingTypeTimeEndingSoonest()
+    {
+        SetSortingType(SortingCategory.TimeEndingSoonest);
+    }
+
+    public void SetSortingTypeTimeEndingFarthest()
+    {
+        SetSortingType(SortingCategory.TimeEndingFarthest);
+    }
+
+    public void SetSortingTypeNameAscending()
+    {
+        SetSortingType(SortingCategory.NameAscending);
+    }
+
+    public void SetSortingTypeNameDescending()
+    {
+        SetSortingType(SortingCategory.NameDescending);
+    }
+
+    private void SetSortingType(SortingCategory sort)
+    {
+        currentSortingMethod = sort;
+        UpdateView();
     }
 }
