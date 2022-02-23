@@ -22,6 +22,9 @@ public struct Perception
     }
 }
 
+public class DataUpdatedEventArgs { }
+public delegate void DataUpdatedEventHandler(object sender, DataUpdatedEventArgs e);
+
 public struct CompletedTask
 {
     // Note that these names are not correct - you can have multiple executions that complete a task.
@@ -60,9 +63,17 @@ public struct CompletedTask
     }
 }
 
+[Serializable]
 public class Observation
 {
+    public static event DataUpdatedEventHandler DataUpdated;
+
+    [SerializeField]
     public string name { get; private set; }
+
+    [SerializeField]
+    public List<Perception> recordedPerceptions = new List<Perception>();
+    private List<CompletedTask> recordedIntervals = new List<CompletedTask>();
 
     public long nextDueDate
     {
@@ -105,8 +116,12 @@ public class Observation
         }
     }
 
-    private List<Perception> recordedPerceptions = new List<Perception>();
-    private List<CompletedTask> recordedIntervals = new List<CompletedTask>();
+    [Newtonsoft.Json.JsonConstructor]
+    public Observation(string name, List<Perception> recordedPerceptions)
+    {
+        this.name = name;
+        this.recordedPerceptions = recordedPerceptions;
+    }
 
     public Observation(string name)
     {
@@ -122,6 +137,7 @@ public class Observation
     public void AddPerception(Perception perception)
     {
         recordedPerceptions.Add(perception);
+        RaiseDataUpdated();
         UpdateRecordedIntervals();
     }
 
@@ -198,22 +214,9 @@ public class Observation
             }
         }
     }
-
-    /*
-    // TODO: Write to disk
-    public string Serialize()
+    
+    private void RaiseDataUpdated()
     {
-        // Write name
-        // Write all Perceptions
+        DataUpdated?.Invoke(this, new DataUpdatedEventArgs());
     }
-
-
-    public Observation Deserialize(string data)
-    {
-        // Read name
-        // Read all Perceptions
-        
-        UpdateRecordedIntervals();
-    }
-    */
 }

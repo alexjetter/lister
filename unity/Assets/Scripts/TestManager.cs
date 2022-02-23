@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System;
 using System.Linq;
+using System.IO;
 
 public class TestManager : MonoBehaviour
 {
@@ -22,7 +23,7 @@ public class TestManager : MonoBehaviour
     public GameObject newObservationPrefab;
     public GameObject listContainer;
     private string defaultNewObservationText = "Name";
-    public List<Observation> observations { get; private set; } = new List<Observation>();
+    public List<Observation> observations = new List<Observation>();
     private List<ObservationView> currentCardPool = new List<ObservationView>();
     private SortingCategory currentSortingMethod = SortingCategory.NameAscending;
 
@@ -43,6 +44,14 @@ public class TestManager : MonoBehaviour
         }
     }
 
+    private string DataPath
+    {
+        get
+        {
+            return Path.Combine(Application.persistentDataPath, "settings.txt");
+        }
+    }
+
     private void Awake()
     {
         if (_instance != null && _instance != this)
@@ -53,10 +62,14 @@ public class TestManager : MonoBehaviour
         {
             _instance = this;
         }
+
+        ReadAllFromDisk();
+        Observation.DataUpdated += OnObservationDataUpdated;
     }
 
     private void OnDestroy()
     {
+        Observation.DataUpdated -= OnObservationDataUpdated;
         if (this == _instance)
         {
             _instance = null;
@@ -67,7 +80,7 @@ public class TestManager : MonoBehaviour
     {
         newObservationName.text = defaultNewObservationText;
     }
-    
+
     public void OnTapNewObservation()
     {
         string newName = newObservationName.text;
@@ -85,6 +98,9 @@ public class TestManager : MonoBehaviour
         newObservationName.text = defaultNewObservationText;
 
         UpdateView();
+
+        // Write here since even though the Observation changing raises the event, it won't serialize the updated observations list until after it is added.
+        WriteAllToDisk();
     }
 
     private void SortObservations(SortingCategory category)
@@ -184,5 +200,26 @@ public class TestManager : MonoBehaviour
     {
         currentSortingMethod = sort;
         UpdateView();
+    }
+
+    private void WriteAllToDisk()
+    {
+        File.WriteAllText(DataPath, Newtonsoft.Json.JsonConvert.SerializeObject(observations));
+    }
+
+    private void ReadAllFromDisk()
+    {
+        if (File.Exists(DataPath))
+        {
+            observations = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Observation>>(File.ReadAllText(DataPath));
+
+            UpdateView();
+        }
+    }
+
+    private void OnObservationDataUpdated(object sender, DataUpdatedEventArgs e)
+    {
+        // For now, just write everything.
+        WriteAllToDisk();
     }
 }
